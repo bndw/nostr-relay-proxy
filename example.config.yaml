@@ -1,0 +1,10 @@
+allowed_npubs:
+- npub10000000thpep7auj058803nqtymqlf3rw87lzhe6mkfeywnpxg5sjw7nql
+read_relays:
+- wss://nos.lol
+- wss://relay.damus.io
+write_relays:
+- wss://nos.lol
+- wss://relay.damus.io
+
+# for additional configuration parameters, see config.go.
