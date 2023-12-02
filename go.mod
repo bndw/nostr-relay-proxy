@@ -4,8 +4,8 @@ go 1.20
 
 require (
 	github.com/fiatjaf/eventstore v0.2.9
-	github.com/fiatjaf/relayer/v2 v2.1.7
-	github.com/nbd-wtf/go-nostr v0.25.7
+	github.com/fiatjaf/relayer/v2 v2.1.8
+	github.com/nbd-wtf/go-nostr v0.26.2
 	gopkg.in/yaml.v3 v3.0.1
 )
 

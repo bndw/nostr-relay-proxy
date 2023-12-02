@@ -47,6 +47,18 @@ func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
 	return true
 }
 
+// NIP-42 auth
+func (r *relay) ServiceURL() string {
+	r.log.Println("nip42 relay.ServiceURL called")
+	return r.config.NIP42ServiceURL
+}
+
+func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, authed string) bool {
+	allowed := r.config.PubkeyIsAllowedToWrite(authed)
+	r.log.Printf("accept request? %t: id=%v authed=%v\n", allowed, id, authed)
+	return allowed
+}
+
 // proxyStore implements the relay's eventstore interface against the
 // configured read and write relays.
 type proxyStore struct {
@@ -65,6 +77,7 @@ func (s proxyStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 }
 
 func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	s.log.Printf("query events: filter: %#v\n", filter)
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
 	var (
@@ -73,12 +86,14 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	)
 
 	go func() {
+		defer func() {
+			cancel()
+			close(events)
+		}()
+
 		for event := range subscription {
 			events <- event.Event
 		}
-
-		cancel()
-		close(events)
 	}()
 
 	return events, nil

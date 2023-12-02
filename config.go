@@ -26,7 +26,8 @@ type Config struct {
 	// ReadRelays is a list of relay URLs events will be read from.
 	ReadRelays []string `yaml:"read_relays"`
 	// WriteRelays is a list of relay URLs new events will be written to.
-	WriteRelays []string `yaml:"write_relays"`
+	WriteRelays     []string `yaml:"write_relays"`
+	NIP42ServiceURL string   `yaml:"nip42_service_url"`
 	// QueryEventsTimeoutSeconds is the number of seconds to hold open a query
 	// against an upstream relay.
 	QueryEventsTimeoutSeconds int `yaml:"query_events_timeout_seconds"`
