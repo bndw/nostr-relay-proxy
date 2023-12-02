@@ -39,8 +39,28 @@ func (r *relay) Init() error {
 }
 
 func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
-	if !r.config.PubkeyIsAllowedToWrite(event.PubKey) {
+	if !r.config.PubkeyIsAllowed(event.PubKey) {
 		r.log.Printf("pubkey not authorized to write: %q\n", event.PubKey)
+		return false
+	}
+
+	return true
+}
+
+// NIP-42 auth
+func (r *relay) ServiceURL() string {
+	r.log.Println("nip42 relay.ServiceURL called")
+	return r.config.NIP42ServiceURL
+}
+
+func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
+	if pk == "" {
+		r.log.Println("AcceptReq: no pubkey")
+		return false
+	}
+
+	if !r.config.PubkeyIsAllowed(pk) {
+		r.log.Printf("pubkey not authorized to read: %q\n", pk)
 		return false
 	}
 
@@ -73,12 +93,14 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	)
 
 	go func() {
+		defer func() {
+			cancel()
+			close(events)
+		}()
+
 		for event := range subscription {
 			events <- event.Event
 		}
-
-		cancel()
-		close(events)
 	}()
 
 	return events, nil
@@ -95,7 +117,7 @@ func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
 		}
 		defer relay.Close()
 
-		_, err = relay.Publish(ctx, *event)
+		err = relay.Publish(ctx, *event)
 		if err != nil {
 			s.log.Printf("relay publish: %v", err)
 			continue
