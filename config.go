@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	defaultPort = 8001
-	defaultHost = "0.0.0.0"
+	defaultPort                      = 8001
+	defaultHost                      = "0.0.0.0"
+	defaultQueryEventsTimeoutSeconds = 120
 )
 
 // Config is the relay configuration.
@@ -26,6 +27,9 @@ type Config struct {
 	// WriteRelays is a list of relay URLs new events will be written to.
 	WriteRelays     []string `yaml:"write_relays"`
 	NIP42ServiceURL string   `yaml:"nip42_service_url"`
+	// QueryEventsTimeoutSeconds is the number of seconds to hold open a query
+	// against an upstream relay.
+	QueryEventsTimeoutSeconds int `yaml:"query_events_timeout_seconds"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -52,6 +56,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.Host == "" {
 		c.Host = defaultHost
+	}
+	if c.QueryEventsTimeoutSeconds == 0 {
+		c.QueryEventsTimeoutSeconds = defaultQueryEventsTimeoutSeconds
 	}
 }
 
