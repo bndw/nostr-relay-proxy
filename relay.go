@@ -47,15 +47,12 @@ func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
 	return true
 }
 
-// NIP-42 auth
 func (r *relay) ServiceURL() string {
-	r.log.Println("nip42 relay.ServiceURL called")
 	return r.config.NIP42ServiceURL
 }
 
 func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
 	if pk == "" {
-		r.log.Println("AcceptReq: no pubkey")
 		return false
 	}
 
@@ -85,6 +82,7 @@ func (s proxyStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 }
 
 func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	s.log.Printf("QueryEvents: %#v\n", filter)
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
 	var (
@@ -107,19 +105,19 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 }
 
 func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
-	s.log.Printf("received event: %#v\n", *event)
+	s.log.Printf("SaveEvent: %#v\n", *event)
 
 	for _, url := range s.config.WriteRelays {
 		relay, err := nostr.RelayConnect(ctx, url)
 		if err != nil {
-			s.log.Printf("relay connect: %v", err)
+			s.log.Printf("err: relay connect %q: %v", url, err)
 			continue
 		}
 		defer relay.Close()
 
 		err = relay.Publish(ctx, *event)
 		if err != nil {
-			s.log.Printf("relay publish: %v", err)
+			s.log.Printf("err: relay publish %q: %v", url, err)
 			continue
 		}
 
