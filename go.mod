@@ -11,6 +11,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+replace github.com/fiatjaf/relayer/v2 => github.com/bndw/relayer/v2 v2.0.2-0.20240205202742-fa81750ee096
+
 require (
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect

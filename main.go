@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/fiatjaf/relayer/v2"
 )
@@ -24,7 +25,11 @@ func main() {
 
 	r := newRelay(log, cfg)
 
-	server, err := relayer.NewServer(r)
+	opts := []relayer.Option{
+		relayer.WithAuthDeadline(
+			time.Duration(cfg.AuthDeadlineSeconds) * time.Second),
+	}
+	server, err := relayer.NewServer(r, opts...)
 	if err != nil {
 		log.Errorf("new server: %v", err)
 		os.Exit(1)

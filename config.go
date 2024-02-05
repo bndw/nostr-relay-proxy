@@ -12,6 +12,7 @@ const (
 	defaultPort                      = 8001
 	defaultHost                      = "0.0.0.0"
 	defaultQueryEventsTimeoutSeconds = 120
+	defaultAuthDeadlineSeconds       = 5
 )
 
 // Config is the relay configuration.
@@ -32,6 +33,9 @@ type Config struct {
 	// QueryEventsTimeoutSeconds is the number of seconds to hold open a query
 	// against an upstream relay.
 	QueryEventsTimeoutSeconds int `yaml:"query_events_timeout_seconds"`
+	// AuthDeadlineSeconds is the number of seconds a client must respond to
+	// the NIP-42 auth challenge within before the connection is closed.
+	AuthDeadlineSeconds int `yaml:"auth_deadline_seconds"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -64,6 +68,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.QueryEventsTimeoutSeconds == 0 {
 		c.QueryEventsTimeoutSeconds = defaultQueryEventsTimeoutSeconds
+	}
+	if c.AuthDeadlineSeconds == 0 {
+		c.AuthDeadlineSeconds = defaultAuthDeadlineSeconds
 	}
 }
 
