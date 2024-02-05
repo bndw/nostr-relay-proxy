@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/fiatjaf/eventstore"
@@ -82,7 +84,9 @@ func (s proxyStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 }
 
 func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
-	s.log.Printf("QueryEvents: %#v\n", filter)
+	tok := genToken()
+	s.log.Printf("QueryEvents[%s]: %#v\n", tok, filter)
+
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
 	var (
@@ -92,6 +96,7 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 
 	go func() {
 		defer func() {
+			s.log.Printf("QueryEvents[%s]: close chan\n", tok)
 			cancel()
 			close(events)
 		}()
@@ -125,4 +130,10 @@ func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
 	}
 
 	return nil
+}
+
+func genToken() string {
+	tkn := make([]byte, 4)
+	rand.Read(tkn)
+	return fmt.Sprintf("%x", tkn)
 }
