@@ -20,6 +20,8 @@ type Config struct {
 	Port int `yaml:"port"`
 	// Host is the listen host.
 	Host string `yaml:"host"`
+	// LogLevel sets the log level, either 'debug' or 'error'. Defaults error.
+	LogLevel string `yaml:"log_level"`
 	// AllowedNpubs is a list of npubs the relay will accept events from.
 	AllowedNpubs []string `yaml:"allowed_npubs"`
 	// ReadRelays is a list of relay URLs events will be read from.
@@ -56,6 +58,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.Host == "" {
 		c.Host = defaultHost
+	}
+	if c.LogLevel == "" {
+		c.LogLevel = "error"
 	}
 	if c.QueryEventsTimeoutSeconds == 0 {
 		c.QueryEventsTimeoutSeconds = defaultQueryEventsTimeoutSeconds
