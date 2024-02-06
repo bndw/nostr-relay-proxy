@@ -70,9 +70,19 @@ func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters,
 type proxyStore struct {
 	log    logger
 	config Config
+
+	pool *nostr.SimplePool
 }
 
 func (s proxyStore) Init() error {
+	s.pool = nostr.NewSimplePool(context.Background())
+
+	for _, url := range s.config.ReadRelays {
+		if _, err := s.pool.EnsureRelay(url); err != nil {
+			s.log.Errorf("pool connect to %v err: %v", url, err)
+		}
+	}
+
 	return nil
 }
 
@@ -90,7 +100,7 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 
 	var (
 		events       = make(chan *nostr.Event)
-		subscription = nostr.NewSimplePool(ctx).SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
+		subscription = s.pool.SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 	)
 
 	go func() {
