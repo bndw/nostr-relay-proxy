@@ -74,7 +74,7 @@ type proxyStore struct {
 	pool *nostr.SimplePool
 }
 
-func (s proxyStore) Init() error {
+func (s *proxyStore) Init() error {
 	s.pool = nostr.NewSimplePool(context.Background())
 
 	for _, url := range s.config.ReadRelays {
