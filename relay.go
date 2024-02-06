@@ -2,14 +2,15 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/fiatjaf/eventstore"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func newRelay(log *log.Logger, cfg Config) *relay {
+func newRelay(log logger, cfg Config) *relay {
 	return &relay{
 		log:    log,
 		config: cfg,
@@ -21,7 +22,7 @@ func newRelay(log *log.Logger, cfg Config) *relay {
 }
 
 type relay struct {
-	log     *log.Logger
+	log     logger
 	config  Config
 	storage *proxyStore
 }
@@ -39,8 +40,25 @@ func (r *relay) Init() error {
 }
 
 func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
-	if !r.config.PubkeyIsAllowedToWrite(event.PubKey) {
-		r.log.Printf("pubkey not authorized to write: %q\n", event.PubKey)
+	if !r.config.PubkeyIsAllowed(event.PubKey) {
+		r.log.Infof("pubkey not authorized to write: %q", event.PubKey)
+		return false
+	}
+
+	return true
+}
+
+func (r *relay) ServiceURL() string {
+	return r.config.NIP42ServiceURL
+}
+
+func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
+	if pk == "" {
+		return false
+	}
+
+	if !r.config.PubkeyIsAllowed(pk) {
+		r.log.Infof("pubkey not authorized to read: %q", pk)
 		return false
 	}
 
@@ -50,11 +68,21 @@ func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
 // proxyStore implements the relay's eventstore interface against the
 // configured read and write relays.
 type proxyStore struct {
-	log    *log.Logger
+	log    logger
 	config Config
+
+	pool *nostr.SimplePool
 }
 
-func (s proxyStore) Init() error {
+func (s *proxyStore) Init() error {
+	s.pool = nostr.NewSimplePool(context.Background())
+
+	for _, url := range s.config.ReadRelays {
+		if _, err := s.pool.EnsureRelay(url); err != nil {
+			s.log.Errorf("pool connect to %v err: %v", url, err)
+		}
+	}
+
 	return nil
 }
 
@@ -65,44 +93,56 @@ func (s proxyStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 }
 
 func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
+	tok := genToken()
+	s.log.Infof("QueryEvents[%s]: %#v", tok, filter)
+
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
 	var (
 		events       = make(chan *nostr.Event)
-		subscription = nostr.NewSimplePool(ctx).SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
+		subscription = s.pool.SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 	)
 
 	go func() {
+		defer func() {
+			s.log.Infof("QueryEvents[%s]: close chan", tok)
+			cancel()
+			close(events)
+		}()
+
 		for event := range subscription {
 			events <- event.Event
 		}
-
-		cancel()
-		close(events)
 	}()
 
 	return events, nil
 }
 
 func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
-	s.log.Printf("received event: %#v\n", *event)
+	s.log.Infof("SaveEvent: %#v", *event)
 
 	for _, url := range s.config.WriteRelays {
 		relay, err := nostr.RelayConnect(ctx, url)
 		if err != nil {
-			s.log.Printf("relay connect: %v", err)
+			s.log.Infof("err: relay connect %q: %v", url, err)
 			continue
 		}
 		defer relay.Close()
 
-		_, err = relay.Publish(ctx, *event)
+		err = relay.Publish(ctx, *event)
 		if err != nil {
-			s.log.Printf("relay publish: %v", err)
+			s.log.Infof("err: relay publish %q: %v", url, err)
 			continue
 		}
 
-		s.log.Printf("published to %s\n", url)
+		s.log.Infof("published to %s", url)
 	}
 
 	return nil
+}
+
+func genToken() string {
+	tkn := make([]byte, 4)
+	rand.Read(tkn)
+	return fmt.Sprintf("%x", tkn)
 }
