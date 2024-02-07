@@ -1,5 +1,7 @@
 # nostr-relay-proxy
 
+> ⚠️ WARNING: Experimental software. Use at your own risk.
+
 A fan-in / fan-out nostr relay proxy. Instead of connecting your
 nostr client to many relays, connect it to a single nostr-relay-proxy.
 Let the proxy take care of deduplicating events and shipping to your client
