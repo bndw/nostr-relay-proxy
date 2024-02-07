@@ -36,8 +36,8 @@ func main() {
 	}
 	server.Log = log
 
-	log.Errorf("listening on: 0.0.0.0:%d", cfg.Port)
-	if err := server.Start("0.0.0.0", cfg.Port); err != nil {
+	log.Errorf("listening on: %s:%d", cfg.Host, cfg.Port)
+	if err := server.Start(cfg.Host, cfg.Port); err != nil {
 		log.Errorf("server terminated: %v", err)
 		os.Exit(1)
 	}

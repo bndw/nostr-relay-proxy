@@ -17,6 +17,8 @@ const (
 
 // Config is the relay configuration.
 type Config struct {
+	// RelayURL is the websocket address of the relay.
+	RelayURL string `yaml:"relay_url"`
 	// Port is the listen port.
 	Port int `yaml:"port"`
 	// Host is the listen host.
@@ -28,8 +30,7 @@ type Config struct {
 	// ReadRelays is a list of relay URLs events will be read from.
 	ReadRelays []string `yaml:"read_relays"`
 	// WriteRelays is a list of relay URLs new events will be written to.
-	WriteRelays     []string `yaml:"write_relays"`
-	NIP42ServiceURL string   `yaml:"nip42_service_url"`
+	WriteRelays []string `yaml:"write_relays"`
 	// QueryEventsTimeoutSeconds is the number of seconds to hold open a query
 	// against an upstream relay.
 	QueryEventsTimeoutSeconds int `yaml:"query_events_timeout_seconds"`

@@ -49,7 +49,7 @@ func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
 }
 
 func (r *relay) ServiceURL() string {
-	return r.config.NIP42ServiceURL
+	return r.config.RelayURL
 }
 
 func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
