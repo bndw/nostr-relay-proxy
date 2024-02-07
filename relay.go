@@ -100,7 +100,7 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 
 	var (
 		events       = make(chan *nostr.Event)
-		subscription = s.pool.SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
+		subscription = s.pool.SubManyEose(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 	)
 
 	go func() {
