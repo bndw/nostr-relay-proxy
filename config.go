@@ -37,6 +37,8 @@ type Config struct {
 	// AuthDeadlineSeconds is the number of seconds a client must respond to
 	// the NIP-42 auth challenge within before the connection is closed.
 	AuthDeadlineSeconds int `yaml:"auth_deadline_seconds"`
+	// LocalDBPath sets the directory of local event storage. Defaults ./lmdb.db.
+	LocalDBPath string `yaml:"local_db_path"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -66,6 +68,9 @@ func (c *Config) setDefaults() {
 	}
 	if c.LogLevel == "" {
 		c.LogLevel = "error"
+	}
+	if c.LocalDBPath == "" {
+		c.LocalDBPath = "lmdb.db"
 	}
 	if c.QueryEventsTimeoutSeconds == 0 {
 		c.QueryEventsTimeoutSeconds = defaultQueryEventsTimeoutSeconds
