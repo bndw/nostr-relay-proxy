@@ -57,7 +57,7 @@ func (r *relay) ServiceURL() string {
 }
 
 func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
-	if pk == "" {
+	if !r.config.DisableAuth && pk == "" {
 		return false
 	}
 
