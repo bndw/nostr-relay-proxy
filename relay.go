@@ -44,7 +44,7 @@ func (r *relay) Init() error {
 }
 
 func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
-	if !r.config.PubkeyIsAllowed(event.PubKey) {
+	if len(r.config.AllowedNpubs) > 0 && !r.config.PubkeyIsAllowed(event.PubKey) {
 		r.log.Infof("pubkey not authorized to write: %q", event.PubKey)
 		return false
 	}
@@ -61,7 +61,7 @@ func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters,
 		return false
 	}
 
-	if !r.config.PubkeyIsAllowed(pk) {
+	if len(r.config.AllowedNpubs) > 0 && !r.config.PubkeyIsAllowed(pk) {
 		r.log.Infof("pubkey not authorized to read: %q", pk)
 		return false
 	}
