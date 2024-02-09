@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/http"
 	"os"
-	"time"
 
-	"github.com/fiatjaf/relayer/v2"
+	"github.com/fiatjaf/khatru"
 )
 
 func main() {
@@ -23,22 +24,36 @@ func main() {
 
 	log.Infof("loaded config: %#v", cfg)
 
-	r := newRelay(log, cfg)
-
-	opts := []relayer.Option{
-		relayer.WithAuthDeadline(
-			time.Duration(cfg.AuthDeadlineSeconds) * time.Second),
-	}
-	server, err := relayer.NewServer(r, opts...)
-	if err != nil {
-		log.Errorf("new server: %v", err)
+	store := newProxyStore(log, cfg)
+	if err := store.Init(); err != nil {
+		log.Errorf("store init: %v", err)
 		os.Exit(1)
 	}
-	server.Log = log
 
-	log.Errorf("listening on: %s:%d", cfg.Host, cfg.Port)
-	if err := server.Start(cfg.Host, cfg.Port); err != nil {
-		log.Errorf("server terminated: %v", err)
-		os.Exit(1)
-	}
+	relay := khatru.NewRelay()
+	relay.ServiceURL = cfg.RelayURL
+	relay.Info.Name = cfg.RelayName
+	relay.Info.PubKey = cfg.decodeRelayNpub()
+	relay.Info.Contact = cfg.RelayContact
+	relay.Info.Description = cfg.RelayDescription
+	relay.Info.Icon = cfg.RelayIconURL
+	relay.Info.Software = "https://github.com/bndw/nostr-relay-proxy"
+	relay.Info.Version = cfg.RelayVersion
+	relay.StoreEvent = append(relay.StoreEvent, store.SaveEvent)
+	relay.QueryEvents = append(relay.QueryEvents, store.QueryEvents)
+	relay.DeleteEvent = append(relay.DeleteEvent, store.DeleteEvent)
+	relay.RejectEvent = append(relay.RejectEvent, store.RejectEvent)
+	relay.RejectFilter = append(relay.RejectFilter, store.RejectFilter)
+
+	mux := relay.Router()
+	// set up other http handlers
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("content-type", "text/html")
+		fmt.Fprintf(w, `<b>welcome</b> to my relay!`)
+	})
+
+	// start the server
+	listenAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+	log.Errorf("listening on: %s", listenAddr)
+	http.ListenAndServe(listenAddr, relay)
 }
