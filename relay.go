@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"sync"
 	"time"
 
 	"github.com/fiatjaf/eventstore"
+	"github.com/fiatjaf/eventstore/lmdb"
 	"github.com/nbd-wtf/go-nostr"
 )
 
@@ -17,13 +19,15 @@ func newRelay(log logger, cfg Config) *relay {
 		storage: &proxyStore{
 			log:    log,
 			config: cfg,
+			db:     &lmdb.LMDBBackend{Path: cfg.LocalDBPath},
 		},
 	}
 }
 
 type relay struct {
-	log     logger
-	config  Config
+	log    logger
+	config Config
+
 	storage *proxyStore
 }
 
@@ -72,9 +76,15 @@ type proxyStore struct {
 	config Config
 
 	pool *nostr.SimplePool
+	db   *lmdb.LMDBBackend
 }
 
 func (s *proxyStore) Init() error {
+	// Init the local cache
+	if err := s.db.Init(); err != nil {
+		return err
+	}
+
 	s.pool = nostr.NewSimplePool(context.Background())
 
 	for _, url := range s.config.ReadRelays {
@@ -94,25 +104,77 @@ func (s proxyStore) DeleteEvent(ctx context.Context, evt *nostr.Event) error {
 
 func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan *nostr.Event, error) {
 	tok := genToken()
-	s.log.Infof("QueryEvents[%s]: %#v", tok, filter)
+	s.log.Infof("QueryEvents[%s]: starting", tok)
 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
 	var (
-		events       = make(chan *nostr.Event)
-		subscription = s.pool.SubManyEose(ctx, s.config.ReadRelays, []nostr.Filter{filter})
+		events                  = make(chan *nostr.Event)
+		localSent, upstreamSent = 0, 0
+
+		seen sync.Map
+		wg   sync.WaitGroup
 	)
+
+	// local db
+	wg.Add(1)
+
+	local, err := s.db.QueryEvents(ctx, filter)
+	if err != nil {
+		s.log.Infof("err QueryEvents[%s] local err: %v", tok, err)
+	}
 
 	go func() {
 		defer func() {
-			s.log.Infof("QueryEvents[%s]: close chan", tok)
-			cancel()
-			close(events)
+			wg.Done()
+			s.log.Infof("QueryEvents[%s]: local done", tok)
 		}()
 
-		for event := range subscription {
-			events <- event.Event
+		for event := range local {
+			if _, ok := seen.Load(event.ID); ok {
+				continue
+			}
+
+			events <- event
+			localSent++
+
+			seen.Store(event.ID, struct{}{})
 		}
+	}()
+
+	// upstream relays
+	wg.Add(1)
+	upstream := s.pool.SubManyEose(ctx, s.config.ReadRelays, []nostr.Filter{filter})
+	go func() {
+		defer func() {
+			wg.Done()
+			s.log.Infof("QueryEvents[%s]: upstream done", tok)
+		}()
+		defer func() {
+			if r := recover(); r != nil {
+				s.log.Infof("QueryEvents[%s]: panic recovered: %v", tok, r)
+			}
+		}()
+
+		for event := range upstream {
+			if _, ok := seen.Load(event.ID); ok {
+				continue
+			}
+
+			events <- event.Event
+			upstreamSent++
+
+			seen.Store(event.ID, struct{}{})
+
+			s.db.SaveEvent(ctx, event.Event)
+		}
+	}()
+
+	go func() {
+		wg.Wait()
+		s.log.Infof("QueryEvents[%s]: complete. %d local %d upstream", tok, localSent, upstreamSent)
+		cancel()
+		close(events)
 	}()
 
 	return events, nil
@@ -137,6 +199,8 @@ func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
 
 		s.log.Infof("published to %s", url)
 	}
+
+	s.db.SaveEvent(ctx, event)
 
 	return nil
 }

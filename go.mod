@@ -14,6 +14,7 @@ require (
 replace github.com/fiatjaf/relayer/v2 => github.com/bndw/relayer/v2 v2.0.2-0.20240206225230-89627ac9d116
 
 require (
+	github.com/PowerDNS/lmdb-go v1.9.2 // indirect
 	github.com/andybalholm/brotli v1.0.6 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.5 // indirect
