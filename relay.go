@@ -80,7 +80,6 @@ type proxyStore struct {
 }
 
 func (s *proxyStore) Init() error {
-	// Init the local cache
 	if err := s.db.Init(); err != nil {
 		return err
 	}
@@ -106,8 +105,6 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	tok := genToken()
 	s.log.Infof("QueryEvents[%s]: starting", tok)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
-
 	var (
 		events                  = make(chan *nostr.Event)
 		localSent, upstreamSent = 0, 0
@@ -116,9 +113,10 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 		wg   sync.WaitGroup
 	)
 
-	// local db
-	wg.Add(1)
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
 
+	// Local db
+	wg.Add(1)
 	local, err := s.db.QueryEvents(ctx, filter)
 	if err != nil {
 		s.log.Infof("err QueryEvents[%s] local err: %v", tok, err)
@@ -142,7 +140,7 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 		}
 	}()
 
-	// upstream relays
+	// Upstream relays
 	wg.Add(1)
 	upstream := s.pool.SubManyEose(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 	go func() {
@@ -151,8 +149,9 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 			s.log.Infof("QueryEvents[%s]: upstream done", tok)
 		}()
 		defer func() {
+			// TODO: Some calls to db.SaveEvent are panicing about an out of bounds idx
 			if r := recover(); r != nil {
-				s.log.Infof("QueryEvents[%s]: panic recovered: %v", tok, r)
+				s.log.Errorf("QueryEvents[%s]: panic recovered: %v", tok, r)
 			}
 		}()
 
@@ -165,7 +164,6 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 			upstreamSent++
 
 			seen.Store(event.ID, struct{}{})
-
 			s.db.SaveEvent(ctx, event.Event)
 		}
 	}()
