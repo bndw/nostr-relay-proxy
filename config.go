@@ -39,6 +39,8 @@ type Config struct {
 	AuthDeadlineSeconds int `yaml:"auth_deadline_seconds"`
 	// LocalDBPath sets the directory of local event storage. Defaults ./lmdb.db.
 	LocalDBPath string `yaml:"local_db_path"`
+	// DisableAuth disables the NIP-42 auth requirement.
+	DisableAuth bool `yaml:"disable_auth"`
 }
 
 func LoadConfig(path string) (Config, error) {
