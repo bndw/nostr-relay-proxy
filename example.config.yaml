@@ -1,6 +1,7 @@
 relay_url: wss://example.com
 host: 0.0.0.0
 port: 8000
+local_db_path: data
 allowed_npubs:
 - npub10000000thpep7auj058803nqtymqlf3rw87lzhe6mkfeywnpxg5sjw7nql
 read_relays:
