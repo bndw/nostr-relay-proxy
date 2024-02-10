@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/fiatjaf/khatru"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -45,6 +46,7 @@ func main() {
 	relay.RejectEvent = append(relay.RejectEvent, store.RejectEvent)
 	relay.RejectFilter = append(relay.RejectFilter, store.RejectFilter)
 	relay.Router().HandleFunc("/", handleIndex)
+	relay.Router().Handle("/metrics", promhttp.Handler())
 
 	listenAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	log.Errorf("listening on: %s", listenAddr)
