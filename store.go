@@ -6,7 +6,9 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/lmdb"
+	"github.com/fiatjaf/eventstore/nullstore"
 	"github.com/fiatjaf/khatru"
 	"github.com/nbd-wtf/go-nostr"
 )
@@ -15,7 +17,7 @@ func newProxyStore(log logger, cfg Config) *proxyStore {
 	return &proxyStore{
 		log:    log,
 		config: cfg,
-		db:     &lmdb.LMDBBackend{Path: cfg.LocalDBPath},
+		db:     &nullstore.NullStore{},
 	}
 }
 
@@ -23,13 +25,16 @@ type proxyStore struct {
 	log    logger
 	config Config
 
-	db   *lmdb.LMDBBackend
+	db   eventstore.Store
 	pool *nostr.SimplePool
 }
 
 func (s *proxyStore) Init() error {
-	if err := s.db.Init(); err != nil {
-		return err
+	if !s.config.DisableLocalDB {
+		s.db = &lmdb.LMDBBackend{Path: s.config.LocalDBPath}
+		if err := s.db.Init(); err != nil {
+			return err
+		}
 	}
 
 	s.pool = nostr.NewSimplePool(context.Background())

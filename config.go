@@ -46,6 +46,8 @@ type Config struct {
 	LocalDBPath string `yaml:"local_db_path"`
 	// DisableAuth disables the NIP-42 auth requirement.
 	DisableAuth bool `yaml:"disable_auth"`
+	// DisableLocalDB disables local event storage.
+	DisableLocalDB bool `yaml:"disable_local_db"`
 }
 
 func LoadConfig(path string) (Config, error) {
