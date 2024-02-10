@@ -54,14 +54,19 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	s.log.Infof("QueryEvents[%s]: starting", tok)
 
 	var (
+		wg                        sync.WaitGroup
 		seen                      sync.Map
 		events                    = make(chan *nostr.Event)
 		localCount, upstreamCount = 0, 0
 	)
 
 	// Local db
+	wg.Add(1)
 	go func() {
-		defer s.log.Infof("QueryEvents[%s]: local done", tok)
+		defer func() {
+			wg.Done()
+			s.log.Infof("QueryEvents[%s]: local done", tok)
+		}()
 
 		local, err := s.db.QueryEvents(ctx, filter)
 		if err != nil {
@@ -82,8 +87,12 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	}()
 
 	// Upstream relays
+	wg.Add(1)
 	go func() {
-		defer s.log.Infof("QueryEvents[%s]: upstream done", tok)
+		defer func() {
+			wg.Done()
+			s.log.Infof("QueryEvents[%s]: upstream done", tok)
+		}()
 
 		defer func() {
 			// TODO: Some calls to db.SaveEvent are panicing about an out of bounds idx
@@ -108,6 +117,7 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 
 	go func() {
 		<-ctx.Done()
+		wg.Wait()
 		s.log.Infof("QueryEvents[%s]: complete. %d local %d upstream", tok, localCount, upstreamCount)
 		close(events)
 	}()
