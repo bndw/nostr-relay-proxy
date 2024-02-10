@@ -10,10 +10,8 @@ import (
 )
 
 const (
-	defaultPort                      = 8001
-	defaultHost                      = "0.0.0.0"
-	defaultQueryEventsTimeoutSeconds = 120
-	defaultAuthDeadlineSeconds       = 5
+	defaultPort = 8001
+	defaultHost = "0.0.0.0"
 )
 
 // Config is the relay configuration.
@@ -44,12 +42,6 @@ type Config struct {
 	ReadRelays []string `yaml:"read_relays"`
 	// WriteRelays is a list of relay URLs new events will be written to.
 	WriteRelays []string `yaml:"write_relays"`
-	// QueryEventsTimeoutSeconds is the number of seconds to hold open a query
-	// against an upstream relay.
-	QueryEventsTimeoutSeconds int `yaml:"query_events_timeout_seconds"`
-	// AuthDeadlineSeconds is the number of seconds a client must respond to
-	// the NIP-42 auth challenge within before the connection is closed.
-	AuthDeadlineSeconds int `yaml:"auth_deadline_seconds"`
 	// LocalDBPath sets the directory of local event storage. Defaults ./lmdb.db.
 	LocalDBPath string `yaml:"local_db_path"`
 	// DisableAuth disables the NIP-42 auth requirement.
@@ -86,12 +78,6 @@ func (c *Config) setDefaults() {
 	}
 	if c.LocalDBPath == "" {
 		c.LocalDBPath = "lmdb.db"
-	}
-	if c.QueryEventsTimeoutSeconds == 0 {
-		c.QueryEventsTimeoutSeconds = defaultQueryEventsTimeoutSeconds
-	}
-	if c.AuthDeadlineSeconds == 0 {
-		c.AuthDeadlineSeconds = defaultAuthDeadlineSeconds
 	}
 
 	// Set relay version as git commit

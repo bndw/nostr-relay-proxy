@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/rand"
 	"sync"
-	"time"
 
 	"github.com/fiatjaf/eventstore/lmdb"
 	"github.com/fiatjaf/khatru"
@@ -55,27 +54,20 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	s.log.Infof("QueryEvents[%s]: starting", tok)
 
 	var (
-		events                  = make(chan *nostr.Event)
-		localSent, upstreamSent = 0, 0
-
-		seen sync.Map
-		wg   sync.WaitGroup
+		seen                      sync.Map
+		events                    = make(chan *nostr.Event)
+		localCount, upstreamCount = 0, 0
 	)
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(s.config.QueryEventsTimeoutSeconds)*time.Second)
-
 	// Local db
-	wg.Add(1)
-	local, err := s.db.QueryEvents(ctx, filter)
-	if err != nil {
-		s.log.Infof("err QueryEvents[%s] local err: %v", tok, err)
-	}
-
 	go func() {
-		defer func() {
-			wg.Done()
-			s.log.Infof("QueryEvents[%s]: local done", tok)
-		}()
+		defer s.log.Infof("QueryEvents[%s]: local done", tok)
+
+		local, err := s.db.QueryEvents(ctx, filter)
+		if err != nil {
+			s.log.Infof("err QueryEvents[%s] local err: %v", tok, err)
+			return
+		}
 
 		for event := range local {
 			if _, ok := seen.Load(event.ID); ok {
@@ -83,20 +75,16 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 			}
 
 			events <- event
-			localSent++
+			localCount++
 
 			seen.Store(event.ID, struct{}{})
 		}
 	}()
 
 	// Upstream relays
-	wg.Add(1)
-	upstream := s.pool.SubManyEose(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 	go func() {
-		defer func() {
-			wg.Done()
-			s.log.Infof("QueryEvents[%s]: upstream done", tok)
-		}()
+		defer s.log.Infof("QueryEvents[%s]: upstream done", tok)
+
 		defer func() {
 			// TODO: Some calls to db.SaveEvent are panicing about an out of bounds idx
 			if r := recover(); r != nil {
@@ -104,13 +92,14 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 			}
 		}()
 
+		upstream := s.pool.SubMany(ctx, s.config.ReadRelays, []nostr.Filter{filter})
 		for event := range upstream {
 			if _, ok := seen.Load(event.ID); ok {
 				continue
 			}
 
 			events <- event.Event
-			upstreamSent++
+			upstreamCount++
 
 			seen.Store(event.ID, struct{}{})
 			s.db.SaveEvent(ctx, event.Event)
@@ -118,9 +107,8 @@ func (s proxyStore) QueryEvents(ctx context.Context, filter nostr.Filter) (chan 
 	}()
 
 	go func() {
-		wg.Wait()
-		s.log.Infof("QueryEvents[%s]: complete. %d local %d upstream", tok, localSent, upstreamSent)
-		cancel()
+		<-ctx.Done()
+		s.log.Infof("QueryEvents[%s]: complete. %d local %d upstream", tok, localCount, upstreamCount)
 		close(events)
 	}()
 
