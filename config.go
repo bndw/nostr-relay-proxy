@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"github.com/nbd-wtf/go-nostr/nip19"
@@ -19,6 +20,18 @@ const (
 type Config struct {
 	// RelayURL is the websocket address of the relay.
 	RelayURL string `yaml:"relay_url"`
+	// RelayName is the NIP-11 relay name.
+	RelayName string `yaml:"relay_name"`
+	// RelayNpub is the NIP-11 relay pubkey in npub encoding.
+	RelayNpub string `yaml:"relay_npub"`
+	// RelayContact is the NIP-11 relay contact.
+	RelayContact string `yaml:"relay_contact"`
+	// RelayDescription is the NIP-11 relay description.
+	RelayDescription string `yaml:"relay_description"`
+	// RelayIconURL is the NIP-11 relay Icon URL.
+	RelayIconURL string `yaml:"relay_icon_url"`
+	RelayVersion string // set automatically
+
 	// Port is the listen port.
 	Port int `yaml:"port"`
 	// Host is the listen host.
@@ -80,6 +93,16 @@ func (c *Config) setDefaults() {
 	if c.AuthDeadlineSeconds == 0 {
 		c.AuthDeadlineSeconds = defaultAuthDeadlineSeconds
 	}
+
+	// Set relay version as git commit
+	if info, ok := debug.ReadBuildInfo(); ok {
+		for _, setting := range info.Settings {
+			switch setting.Key {
+			case "vcs.revision":
+				c.RelayVersion = setting.Value[:7]
+			}
+		}
+	}
 }
 
 func (c Config) PubkeyIsAllowed(pk string) bool {
@@ -99,4 +122,12 @@ func (c Config) PubkeyIsAllowed(pk string) bool {
 	}
 
 	return false
+}
+
+func (c Config) decodeRelayNpub() string {
+	prefix, val, err := nip19.Decode(c.RelayNpub)
+	if err != nil || prefix != "npub" {
+		return ""
+	}
+	return val.(string)
 }

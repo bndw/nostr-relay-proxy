@@ -18,7 +18,7 @@ There are two layers of authentication employed to restrict access:
 
 1. **Public key allowlist**: A list of `allowed_npubs` in the config file restricts reads and writes to whitelisted users.
 2. **[NIP-42](https://github.com/nostr-protocol/nips/blob/master/42.md)**: 
-Queries are restricted to authenticated clients only. Unauthenticated connections are proactively closed.
+Queries are restricted to authenticated clients only.
 
 #### Local database
 

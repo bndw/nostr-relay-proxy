@@ -1,4 +1,8 @@
 relay_url: wss://example.com
+relay_name: nostr relay proxy
+relay_npub: npub1q6jhqge4fql3kvhhq4zf72w6nav7temdcamyxe7vu5ys34s6mvlqc5suxj
+relay_description: A nostr relay proxy instance
+relay_icon_url: "https://images.unsplash.com/photo-1494216928456-ae75fd96603d?q=80&w=300&auto=format&fit=crop&ixlib=rb-4.0.3"
 host: 0.0.0.0
 port: 8000
 local_db_path: data
@@ -7,6 +11,7 @@ allowed_npubs:
 read_relays:
 - wss://nos.lol
 - wss://relay.damus.io
+- wss://relay.plebstr.com
 write_relays:
 - wss://nos.lol
 - wss://relay.damus.io

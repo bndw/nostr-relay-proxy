@@ -7,76 +7,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fiatjaf/eventstore"
 	"github.com/fiatjaf/eventstore/lmdb"
+	"github.com/fiatjaf/khatru"
 	"github.com/nbd-wtf/go-nostr"
 )
 
-func newRelay(log logger, cfg Config) *relay {
-	return &relay{
+func newProxyStore(log logger, cfg Config) *proxyStore {
+	return &proxyStore{
 		log:    log,
 		config: cfg,
-		storage: &proxyStore{
-			log:    log,
-			config: cfg,
-			db:     &lmdb.LMDBBackend{Path: cfg.LocalDBPath},
-		},
+		db:     &lmdb.LMDBBackend{Path: cfg.LocalDBPath},
 	}
 }
 
-type relay struct {
-	log    logger
-	config Config
-
-	storage *proxyStore
-}
-
-func (r *relay) Name() string {
-	return "nostr-relay-proxy"
-}
-
-func (r *relay) Storage(ctx context.Context) eventstore.Store {
-	return r.storage
-}
-
-func (r *relay) Init() error {
-	return nil
-}
-
-func (r *relay) AcceptEvent(ctx context.Context, event *nostr.Event) bool {
-	if len(r.config.AllowedNpubs) > 0 && !r.config.PubkeyIsAllowed(event.PubKey) {
-		r.log.Infof("pubkey not authorized to write: %q", event.PubKey)
-		return false
-	}
-
-	return true
-}
-
-func (r *relay) ServiceURL() string {
-	return r.config.RelayURL
-}
-
-func (r *relay) AcceptReq(ctx context.Context, id string, filters nostr.Filters, pk string) bool {
-	if !r.config.DisableAuth && pk == "" {
-		return false
-	}
-
-	if len(r.config.AllowedNpubs) > 0 && !r.config.PubkeyIsAllowed(pk) {
-		r.log.Infof("pubkey not authorized to read: %q", pk)
-		return false
-	}
-
-	return true
-}
-
-// proxyStore implements the relay's eventstore interface against the
-// configured read and write relays.
 type proxyStore struct {
 	log    logger
 	config Config
 
-	pool *nostr.SimplePool
 	db   *lmdb.LMDBBackend
+	pool *nostr.SimplePool
 }
 
 func (s *proxyStore) Init() error {
@@ -201,6 +150,29 @@ func (s proxyStore) SaveEvent(ctx context.Context, event *nostr.Event) error {
 	s.db.SaveEvent(ctx, event)
 
 	return nil
+}
+
+func (s proxyStore) RejectEvent(ctx context.Context, event *nostr.Event) (bool, string) {
+	if len(s.config.AllowedNpubs) > 0 && !s.config.PubkeyIsAllowed(event.PubKey) {
+		s.log.Infof("pubkey not authorized to write: %q", event.PubKey)
+		return true, "unauthorized pubkey"
+	}
+
+	return false, ""
+}
+
+func (s proxyStore) RejectFilter(ctx context.Context, filter nostr.Filter) (bool, string) {
+	pk := khatru.GetAuthed(ctx)
+	if !s.config.DisableAuth && pk == "" {
+		return true, "auth-required: only authenticated users can read from this relay"
+	}
+
+	if len(s.config.AllowedNpubs) > 0 && !s.config.PubkeyIsAllowed(pk) {
+		s.log.Infof("pubkey not authorized to read: %q", pk)
+		return true, "unauthorized pubkey"
+	}
+
+	return false, ""
 }
 
 func genToken() string {
