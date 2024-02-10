@@ -44,15 +44,8 @@ func main() {
 	relay.DeleteEvent = append(relay.DeleteEvent, store.DeleteEvent)
 	relay.RejectEvent = append(relay.RejectEvent, store.RejectEvent)
 	relay.RejectFilter = append(relay.RejectFilter, store.RejectFilter)
+	relay.Router().HandleFunc("/", handleIndex)
 
-	mux := relay.Router()
-	// set up other http handlers
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("content-type", "text/html")
-		fmt.Fprintf(w, `<b>welcome</b> to my relay!`)
-	})
-
-	// start the server
 	listenAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	log.Errorf("listening on: %s", listenAddr)
 	http.ListenAndServe(listenAddr, relay)
