@@ -166,7 +166,7 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 			{
 				ctx, cancel := context.WithTimeout(ctx, time.Second*1)
 				defer cancel()
-				events, err := store.QueryEvents(ctx, nostr.Filter{
+				events, err := store.db.QueryEvents(ctx, nostr.Filter{
 					Kinds:   []int{0},
 					Authors: []string{event.PubKey},
 					Limit:   1,
