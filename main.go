@@ -45,7 +45,7 @@ func main() {
 	relay.DeleteEvent = append(relay.DeleteEvent, store.DeleteEvent)
 	relay.RejectEvent = append(relay.RejectEvent, store.RejectEvent)
 	relay.RejectFilter = append(relay.RejectFilter, store.RejectFilter)
-	relay.Router().HandleFunc("/", handleIndex)
+	relay.Router().HandleFunc("/", indexHandler(store))
 	relay.Router().Handle("/metrics", promhttp.Handler())
 
 	listenAddr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
