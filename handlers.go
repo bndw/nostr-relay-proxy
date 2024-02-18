@@ -16,6 +16,7 @@ import (
 
 func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request) {
 	const indexTmpl = `<!doctype="html">
+<meta charset="UTF-8">
 <head>
 	<style>
 		body {
