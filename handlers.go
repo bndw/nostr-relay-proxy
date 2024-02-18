@@ -90,7 +90,7 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 	</style>
 </head>
 <body>
-	<h2>nostr relay proxy</h2>
+	<h2><a href="/">nostr relay proxy</a></h2>
 	<div>
 		{{$_ := ""}}
 		{{$e := ""}}
@@ -163,9 +163,9 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 
 			authorName := event.PubKey[:8] + ":" + event.PubKey[len(event.PubKey)-8:]
 			{
-				ctx, cancel := context.WithTimeout(ctx, time.Millisecond*200)
+				ctx, cancel := context.WithTimeout(ctx, time.Second*1)
 				defer cancel()
-				events, err := store.db.QueryEvents(ctx, nostr.Filter{
+				events, err := store.QueryEvents(ctx, nostr.Filter{
 					Kinds:   []int{0},
 					Authors: []string{event.PubKey},
 					Limit:   1,
@@ -177,6 +177,7 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 						if err := json.Unmarshal([]byte(e.Content), &m); err == nil {
 							authorName = m["name"]
 						}
+						store.db.SaveEvent(context.Background(), e)
 					}
 				}
 			}
