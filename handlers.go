@@ -146,6 +146,7 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 			Elapsed string
 			Events  []uiEvent
 		}{}
+
 		for event := range events {
 			kindName := ""
 			switch event.Kind {
@@ -177,7 +178,6 @@ func indexHandler(store *proxyStore) func(w http.ResponseWriter, r *http.Request
 						if err := json.Unmarshal([]byte(e.Content), &m); err == nil {
 							authorName = m["name"]
 						}
-						store.db.SaveEvent(context.Background(), e)
 					}
 				}
 			}
